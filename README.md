@@ -147,7 +147,7 @@ BizFlow is released under the **MIT License**. You are free to use, modify, and 
 
 *If you find the architectural design or the UI/UX concepts of BizFlow valuable for your enterprise use cases, or if you're interested in consulting / custom development, feel free to reach out:*
 
-📧 **[charismamiko@gmail.com]**
+📧 **[charismamikoo@gmail.com]**
 
 ---
 <div align="center">
