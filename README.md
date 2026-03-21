@@ -16,6 +16,7 @@
     <a href="#中文介绍"><b>中文说明文档</b></a>
   </p>
 </div>
+<img width="3024" height="1618" alt="a16f1e7889727d0199e9baab3e61e804" src="https://github.com/user-attachments/assets/c0673b37-fadb-47c3-9bd7-ce05745d0f8e" />
 
 ---
 
