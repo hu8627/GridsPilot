@@ -2,9 +2,12 @@ import os
 import json
 import uuid
 from typing import Dict, Any, List
+from pathlib import Path
 
-# 定义系统级的数据存储总目录 (放在 backend/data 下)
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+
+# 💡 核心修改：将存储目录改为用户系统主目录下的 .nexaflow 文件夹
+USER_HOME = str(Path.home())
+DATA_DIR = os.path.join(USER_HOME, ".nexaflow", "data")
 
 # 核心资产目录
 DIRS = {
@@ -17,7 +20,8 @@ DIRS = {
     "monitors": os.path.join(DATA_DIR, "monitors"),
     "agents": os.path.join(DATA_DIR, "agents") ,
     "traces": os.path.join(DATA_DIR, "traces"),     
-    "cases": os.path.join(DATA_DIR, "cases")  
+    "cases": os.path.join(DATA_DIR, "cases"),
+    "memory": os.path.join(DATA_DIR, "memory")   
 }
 
 # 初始化时自动创建目录
@@ -25,7 +29,7 @@ for d in DIRS.values():
     os.makedirs(d, exist_ok=True)
 
 class FileStorage:
-    """BizFlow OS 统一的本地文件存储网关 (JSON FileDB)"""
+    """NexaFlow OS 统一的本地文件存储网关 (JSON FileDB)"""
     
     @staticmethod
     def save(domain: str, data: Dict[str, Any], file_id: str = None) -> str:

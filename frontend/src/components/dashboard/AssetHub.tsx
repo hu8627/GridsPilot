@@ -56,7 +56,7 @@ export default function AssetHub() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Archive className="text-indigo-500" /> Data Assets & Meta</h1>
-          <p className="text-xs text-slate-500 mt-1">管理外挂业务数据库，以及 BizFlow OS 自身的底层元数据 (Self-Hosted Data)</p>
+          <p className="text-xs text-slate-500 mt-1">管理外挂业务数据库，以及 NexaFlow OS 自身的底层元数据 (Self-Hosted Data)</p>
         </div>
         <div className="flex gap-3">
           <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-bold py-2 px-4 rounded flex items-center gap-2 transition-all">

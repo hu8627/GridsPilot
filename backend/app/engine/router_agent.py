@@ -4,7 +4,7 @@ from app.execution.llm import ask_llm
 from app.core.storage import FileStorage
 
 MASTER_ROUTER_PROMPT = """
-你是 BizFlow OS 的核心中枢智能体 (Intent Router)。你的职责是解析用户的输入指令。
+你是 NexaFlow OS 的核心中枢智能体 (Intent Router)。你的职责是解析用户的输入指令。
 
 【判断逻辑】：
 1. 如果用户只是进行普通问候、闲聊、或询问通用信息 -> 直接用自然语言回答即可，不要输出 JSON。
@@ -46,7 +46,7 @@ MASTER_ROUTER_PROMPT = """
 
 【设计要求】：
 1. 节点设计必须合理，且必须是链式或分支结构（DAG 有向无环图）。
-2. 如果任务涉及“写入重要数据”或“执行高危操作”（如付款、最终拒绝、写入 CRM），建议将其对应的节点属性 "interrupt_before" 设置为 true，这会触发 BizFlow 的 Auditor 人工审核熔断机制。
+2. 如果任务涉及“写入重要数据”或“执行高危操作”（如付款、最终拒绝、写入 CRM），建议将其对应的节点属性 "interrupt_before" 设置为 true，这会触发 NexaFlow 的 Auditor 人工审核熔断机制。
 3. 请确保 edges 中的 source 和 target ID 必须真实存在于 nodes 列表中。
 """
 def process_chat_intent(user_input: str) -> dict:

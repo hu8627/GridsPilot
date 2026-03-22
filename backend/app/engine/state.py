@@ -3,7 +3,7 @@ import operator
 
 class AgentState(TypedDict):
     """
-    BizFlow 全局运行状态 (The Context)
+    NexaFlow 全局运行状态 (The Context)
     在 LangGraph 的节点流转中，这个字典会被不断传递和修改
     """
     task_id: str

@@ -161,7 +161,7 @@ export default function ChatCopilot() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/50 flex items-center justify-center text-blue-400"><Sparkles size={20} /></div>
             <div>
-              <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2">BizFlow Copilot <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Intent Router</span></h1>
+              <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2">NexaFlow Copilot <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Intent Router</span></h1>
               <p className="text-xs text-slate-500 mt-0.5">对话级意图识别、SOP 动态生成与执行调度。</p>
             </div>
           </div>

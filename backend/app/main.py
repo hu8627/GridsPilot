@@ -1,5 +1,7 @@
+# main.py - NexaFlow Orchestration Engine API Server
 import asyncio
 import json
+import uuid
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,9 +13,9 @@ from app.engine.compiler import BPNLCompiler
 from app.engine.state import AgentState
 from app.engine.router_agent import process_chat_intent
 from app.core.storage import FileStorage
-from app.execution.llm import ask_llm  # 用于迭代 Optimizer Agent
+from app.execution.llm import ask_llm  # 用于迭代 Optimizer Agent 与群聊 Agent
 
-app = FastAPI(title="BizFlow Orchestration Engine", version="1.0.0")
+app = FastAPI(title="NexaFlow Orchestration Engine", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,7 +27,7 @@ app.add_middleware(
 
 @app.get("/")
 async def health_check():
-    return {"status": "BizFlow Engine is Alive", "version": "1.0.0"}
+    return {"status": "NexaFlow Engine is Alive", "version": "1.0.0"}
 
 # ==============================================================================
 # 模块 I：元数据与全域资产总台 (Meta Asset Hub)
@@ -35,7 +37,7 @@ async def health_check():
 async def get_system_meta_assets():
     """
     扫描整个 FileDB 的存储状况，返回各域的表结构及数据量
-    这让 BizFlow 拥有了对自身的 '反射' (Reflection) 能力
+    这让 NexaFlow 拥有了对自身的 '反射' (Reflection) 能力
     """
     domains = ["flows", "models", "skills", "integrations", "monitors", "chats", "agents", "traces", "cases","workspaces"]
     meta_stats = []
@@ -159,26 +161,87 @@ async def save_workspace_channel(channel: WorkspaceChannel):
     return {"status": "success"}
 
 # ==============================================================================
+# 💡 模块 B-8：多智能体群聊引擎 (带有长期记忆与真实 Agent 挂载) [补充部分]
+# ==============================================================================
+class WorkspaceChatRequest(BaseModel):
+    channel_id: str
+    agent_id: str
+    message: str
+
+@app.post("/api/workspace/chat")
+async def workspace_chat_agent(req: WorkspaceChatRequest):
+    """
+    真实的群聊分发中枢：
+    从 FileDB 读取频道的历史记忆，并唤醒被 @ 的特定 Agent 模型进行回复。
+    """
+    print(f"\n📢 [Workspace] 频道 {req.channel_id} 收到消息，试图唤醒 Agent: {req.agent_id}")
+    
+    agent_config = FileStorage.get("agents", req.agent_id)
+    if not agent_config:
+        return {"status": "error", "message": "该员工不存在或已被开除。"}
+
+    agent_name = agent_config.get("name")
+    agent_model = agent_config.get("model", "gpt-4o")
+    agent_persona = agent_config.get("desc", "你是一个工作助手。")
+    
+    channel_data = FileStorage.get("workspaces", req.channel_id)
+    history_messages = channel_data.get("messages", []) if channel_data else []
+    
+    memory_context = "【以下是本群的历史聊天记录】：\n"
+    for msg in history_messages[-10:]:
+        sender = msg.get("user") if msg.get("type") == "human" else msg.get("agentName")
+        memory_context += f"[{sender}]: {msg.get('text')}\n"
+
+    system_prompt = f"""
+    你是 NexaFlow OS 里的数字员工。
+    你的名字是：{agent_name}
+    你的角色和能力边界是：{agent_persona}
+    
+    你现在身处一个企业内部的群聊频道中。请根据上下文和你的角色职责，回复 @ 你的用户。
+    如果用户要求你执行复杂的业务流程，你可以生成一个 BPNL JSON SOP 并输出（和 Intent Router 规则一致）。
+    """
+    
+    full_prompt = f"{memory_context}\n\n【最新消息】\n[Admin]: {req.message}"
+    
+    response_text = ask_llm(prompt=full_prompt, system_prompt=system_prompt, model_id=agent_model)
+    
+    if "```json" in response_text:
+        try:
+            json_str = response_text.split("```json")[1].split("```")[0].strip()
+            sop_data = json.loads(json_str)
+            
+            new_flow_id = f"flow_auto_{uuid.uuid4().hex[:6]}"
+            bpnl_asset = {
+                "id": new_flow_id, "name": sop_data.get('sop_name', f'{agent_name} 自动生成的流程'),
+                "description": f"由 {agent_name} 在群聊中生成",
+                "nodes": sop_data.get('bpnl', {}).get('nodes', []), "edges": sop_data.get('bpnl', {}).get('edges', [])
+            }
+            FileStorage.save("flows", bpnl_asset, new_flow_id)
+            
+            return {
+                "status": "success",
+                "message": f"老板，我已经为您生成了流程图。请点击下方卡片审查或执行。",
+                "is_action": True,
+                "action_card": {"title": bpnl_asset["name"], "nodes": len(bpnl_asset["nodes"]), "flow_id": new_flow_id}
+            }
+        except Exception as e:
+            return {"status": "success", "message": f"(生成流程时出错：{e})\n" + response_text, "is_action": False}
+
+    return {"status": "success", "message": response_text, "is_action": False}
+
+# ==============================================================================
 # 模块 C：资产管理 API (业务流程 Flows)
 # ==============================================================================
 # 高级排版格式的兜底 Demo 流程 (包含 Phase 和 Sublane 容器)
-
-# 修复：真正的工业级左右泳道排版布局
 mock_default_bpnl = {
     "id": "flow_sdr_001",
     "name": "智能拓客与CRM录入 (标准排版)",
     "nodes": [
-        # Phase 1: 宽度 640 (容纳 2 个 320 宽的泳道)
         {"id": "Phase_1", "type": "phaseNode", "position": {"x": 0, "y": 0}, "style": {"width": 640, "height": 800, "zIndex": -1}, "data": {"label": "信息收集与校验", "pill": "CAPTURE", "stats": "2 子泳道"}, "draggable": False, "selectable": False},
-        # Phase 2: 宽度 320 (容纳 1 个 320 宽的泳道)
         {"id": "Phase_2", "type": "phaseNode", "position": {"x": 680, "y": 0}, "style": {"width": 320, "height": 800, "zIndex": -1}, "data": {"label": "核心业务处理", "pill": "PROCESSING", "stats": "1 子泳道"}, "draggable": False, "selectable": False},
-        
-        # 泳道：左右并排排列 (注意 x 的变化)
         {"id": "Lane_1_Main", "type": "sublaneNode", "parentNode": "Phase_1", "position": {"x": 0, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "▶ 主干流水线"}, "draggable": False, "selectable": False},
         {"id": "Lane_1_Exception", "type": "sublaneNode", "parentNode": "Phase_1", "position": {"x": 320, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "🛑 告警/重试分支"}, "draggable": False, "selectable": False},
         {"id": "Lane_2_Audit", "type": "sublaneNode", "parentNode": "Phase_2", "position": {"x": 0, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "⚖️ 核心审核与熔断区"}, "draggable": False, "selectable": False},
-        
-        # 业务节点
         {"id": "N1_Search", "type": "bizNode", "parentNode": "Lane_1_Main", "extent": "parent", "position": {"x": 30, "y": 60}, "style": {"zIndex": 10}, "data": {"id": "N1_Search", "label": "LinkedIn 搜索", "components": [{"step_id": "s1", "type": "action", "tool_name": "browser_open", "params": {}}]}},
         {"id": "N2_Check", "type": "bizNode", "parentNode": "Lane_1_Main", "extent": "parent", "position": {"x": 30, "y": 200}, "style": {"zIndex": 10}, "data": {"id": "N2_Check", "label": "判断是否需要接管", "components": [{"step_id": "s2", "type": "judge", "tool_name": "vision_llm", "params": {}}]}},
         {"id": "N4_Fail_Notify", "type": "bizNode", "parentNode": "Lane_1_Exception", "extent": "parent", "position": {"x": 30, "y": 200}, "style": {"zIndex": 10}, "data": {"id": "N4_Fail_Notify", "label": "失败告警", "components": [{"step_id": "s4", "type": "notify", "tool_name": "dingtalk_bot", "params": {}}]}},
@@ -195,7 +258,6 @@ mock_default_bpnl = {
 async def get_all_flows():
     flows = FileStorage.list_all("flows")
     if not flows:
-        # 如果系统里没有图纸，自动生成一个兜底的高级排版图纸
         FileStorage.save("flows", mock_default_bpnl, mock_default_bpnl["id"])
         flows = [mock_default_bpnl]
     return {"status": "success", "data": flows}
@@ -204,24 +266,25 @@ async def get_all_flows():
 async def get_flow_by_id(flow_id: str):
     flow_data = FileStorage.get("flows", flow_id)
     if not flow_data:
-        return {"status": "error", "msg": "流程图文件不存在，请检查 FileDB"}
+        empty_canvas_fallback = {
+            "id": flow_id, "name": f"未命名流程 ({flow_id})", "description": "系统自动创建的空画板",
+            "nodes": [
+                {"id": "Phase_1", "type": "phaseNode", "position": {"x": 0, "y": 0}, "style": {"width": 360, "height": 600, "zIndex": -1}, "data": {"label": "新建业务阶段", "pill": "NEW PHASE", "stats": "0 子泳道"}, "draggable": False, "selectable": False}
+            ],
+            "edges": []
+        }
+        FileStorage.save("flows", empty_canvas_fallback, flow_id)
+        return {"status": "success", "data": empty_canvas_fallback, "msg": "已自动为您创建空画板"}
+    
     return {"status": "success", "data": flow_data}
 
-# 💡 新增：前端画布保存接口！
 @app.post("/api/flows")
 async def save_flow(flow: FlowSchema):
-    """
-    接收前端 Studio 画布的最新排版和节点属性，覆盖保存至硬盘
-    """
     try:
-        # 将 Pydantic 模型转为字典，并保存到 FileDB
         FileStorage.save("flows", flow.dict(), flow.id)
-        print(f"💾 [Studio] 流程图资产已更新并落盘: {flow.name} ({flow.id})")
         return {"status": "success", "msg": "流程图资产已成功保存！"}
     except Exception as e:
-        print(f"❌ [Studio] 保存流程图失败: {e}")
         return {"status": "error", "msg": f"保存失败: {str(e)}"}
-
 
 # ==============================================================================
 # 模块 D：智能体自我进化 API (Optimizer Agent)
@@ -233,11 +296,6 @@ class OptimizeRequest(BaseModel):
 
 @app.post("/api/optimize_flow")
 async def optimize_flow_by_agent(req: OptimizeRequest):
-    """
-    根据人类在 Ledger 里记录的修正动作，自动调用大模型重写底层的 BPNL JSON 流程图
-    """
-    print(f"\n🧠 [Optimizer Agent] 收到优化请求。目标流程: {req.flow_id}")
-    
     old_flow = FileStorage.get("flows", req.flow_id)
     if not old_flow:
         return {"status": "error", "msg": "找不到原流程"}
@@ -256,15 +314,12 @@ async def optimize_flow_by_agent(req: OptimizeRequest):
         try:
             json_str = response.split("```json")[1].split("```")[0].strip()
             optimized_flow = json.loads(json_str)
-            # 覆盖写入
             FileStorage.save("flows", optimized_flow, req.flow_id)
-            print(f"✅ [Optimizer Agent] 流程 {req.flow_id} 已成功自我进化并覆写落盘！")
             return {"status": "success", "msg": "流程图已根据历史记录优化完成！", "data": optimized_flow}
         except Exception as e:
             return {"status": "error", "msg": str(e)}
             
     return {"status": "error", "msg": "大模型未能生成合法的 JSON"}
-
 
 # ==============================================================================
 # 模块 E：大模型基建配置 (Models)
@@ -315,40 +370,20 @@ class AgentConfig(BaseModel):
 
 @app.get("/api/agents")
 async def get_system_agents():
-    """获取所有已持久化的数字员工 (Agents)"""
     agents = FileStorage.list_all("agents")
-    
-    # 如果硬盘里没数据，注入出厂默认的三个“系统级/示范级”员工
     if not agents:
         default_agents = [
-            {
-                "id": "agent_router", "name": "Intent Router (系统主脑)", "role": "System Core",
-                "desc": "负责在 Copilot 窗口接待用户，分析意图，动态生成并分发 SOP。",
-                "model": "GPT-4 Omni", "skills": ["Zero-shot BPNL Gen", "Intent Analysis"],
-                "status": "active", "isSystem": True
-            },
-            {
-                "id": "agent_researcher", "name": "Web 调研员", "role": "Executor",
-                "desc": "专精于操控无头浏览器进行深度信息搜集与长文本总结。",
-                "model": "Claude 3.5 Sonnet", "skills": ["browser_use", "vision_parser"],
-                "status": "active", "isSystem": False
-            },
-            {
-                "id": "agent_auditor", "name": "合规核查员", "role": "Supervisor / Auditor",
-                "desc": "挂载在流程图的断点处，负责检查关键数据的合规性，判断是否需要呼叫人类。",
-                "model": "Qwen Max", "skills": ["rule_engine_eval", "dingtalk_notify"],
-                "status": "idle", "isSystem": False
-            }
+            {"id": "agent_router", "name": "Intent Router (系统主脑)", "role": "System Core", "desc": "负责在 Copilot 窗口接待用户，分析意图，动态生成并分发 SOP。", "model": "gpt-4o", "skills": ["Zero-shot BPNL Gen"], "status": "active", "isSystem": True},
+            {"id": "agent_researcher", "name": "Web 调研员", "role": "Executor", "desc": "专精于操控无头浏览器进行深度信息搜集与长文本总结。", "model": "deepseek-chat", "skills": ["browser_use"], "status": "active", "isSystem": False},
+            {"id": "agent_auditor", "name": "合规核查员", "role": "Supervisor", "desc": "负责检查关键数据的合规性，判断是否需要呼叫人类。", "model": "qwen-max", "skills": ["rule_engine_eval"], "status": "idle", "isSystem": False}
         ]
         for a in default_agents:
             FileStorage.save("agents", a, a["id"])
         agents = default_agents
-
     return {"status": "success", "data": agents}
 
 @app.post("/api/agents")
 async def save_agent(agent: AgentConfig):
-    """保存或更新单个数字员工"""
     FileStorage.save("agents", agent.dict(), agent.id)
     return {"status": "success", "msg": "数字员工配置已保存"}
 
@@ -380,7 +415,6 @@ async def get_integrations():
         config_values = app.get("config", {}).values()
         is_configured = all(v != "" for v in config_values) and len(config_values) > 0
         app["status"] = "active" if is_configured else "error"
-        
         masked_config = {}
         for k, v in app.get("config", {}).items():
             masked_config[k] = f"{v[:4]}...{v[-4:]}" if len(v) > 10 else ("***" if v else "")
@@ -415,10 +449,7 @@ class InterventionCase(BaseModel):
 
 @app.get("/api/traces")
 async def get_traces():
-    """获取所有任务执行轨迹"""
     traces = FileStorage.list_all("traces")
-    
-    # 注入演示数据
     if not traces:
         default_traces = [
             {"id": "TRC-10024", "intent": "背调 Shopify 并录入 CRM", "flow_id": "智能拓客与CRM录入", "user": "销售-张三", "status": "success", "time": "10 mins ago", "duration": "45s"},
@@ -427,7 +458,6 @@ async def get_traces():
         for t in default_traces:
             FileStorage.save("traces", t, t["id"])
         traces = default_traces
-
     return {"status": "success", "data": traces}
 
 @app.post("/api/traces")
@@ -437,19 +467,15 @@ async def save_trace(trace: TraceLog):
 
 @app.get("/api/cases")
 async def get_intervention_cases():
-    """获取所有人工介入修正的 Case 记录"""
     cases = FileStorage.list_all("cases")
-    
-    # 注入演示数据
     if not cases:
         default_cases = [
-            {"id": "CASE-009", "flow_id": "智能拓客与CRM录入", "node_id": "N3_CRM_Entry", "reason": "找不到[保存]按钮", "human_action": "Clicked XPath: /div/dropdown/li[3]", "time": "Yesterday"},
-            {"id": "CASE-008", "flow_id": "KYC 自动化复核", "node_id": "N2_AntiFraud", "reason": "新版图形验证码识别失败", "human_action": "Manually solved Captcha slider", "time": "2 days ago"}
+            {"id": "CASE-009", "flow_id": "flow_sdr_001", "node_id": "N3_CRM_Entry", "reason": "找不到[保存]按钮", "human_action": "Clicked XPath: /div/dropdown/li[3]", "time": "Yesterday"},
+            {"id": "CASE-008", "flow_id": "flow_kyc_002", "node_id": "N2_AntiFraud", "reason": "新版图形验证码识别失败", "human_action": "Manually solved Captcha slider", "time": "2 days ago"}
         ]
         for c in default_cases:
             FileStorage.save("cases", c, c["id"])
         cases = default_cases
-
     return {"status": "success", "data": cases}
 
 @app.post("/api/cases")
@@ -474,7 +500,6 @@ async def get_monitors():
         monitors = default_rules
     return {"status": "success", "data": monitors}
 
-
 # ==============================================================================
 # 模块 H：执行总线 WS (LangGraph 运行调度器)
 # ==============================================================================
@@ -487,14 +512,11 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             raw_data = await websocket.receive_text()
             if raw_data.startswith("START_TASK"):
-                # 获取前端要跑的图的 ID
                 flow_id_to_run = raw_data.split("|")[1] if len(raw_data.split("|")) > 1 else "flow_sdr_001"
+                
                 await websocket.send_json({"type": "log", "msg": f"🚀 [System] 任务点火：准备加载图纸 {flow_id_to_run}..."})
                 
-                flow_data = FileStorage.get("flows", flow_id_to_run)
-                if not flow_data:
-                    await websocket.send_json({"type": "log", "msg": f"❌ [System] 错误：找不到流程图 {flow_id_to_run}"})
-                    continue
+                flow_data = FileStorage.get("flows", flow_id_to_run) or mock_default_bpnl
                 
                 try:
                     schema = FlowSchema(**flow_data)
@@ -509,7 +531,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     task_id="task_1001", flow_id=flow_id_to_run, context_data={"has_captcha": False}, traces=[], next_node=""
                 )
                 
-                # 遍历执行图
                 for output in compiled_graph.stream(initial_state, {"configurable": {"thread_id": "ws_1"}}):
                     node_id = list(output.keys())[0]
                     await websocket.send_json({"type": "node_active", "node_id": node_id})
@@ -522,4 +543,4 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "node_active", "node_id": None})
                 
     except WebSocketDisconnect:
-        print("🔌 [WebSocket] 前端驾驶舱已断开连接")
+        pass

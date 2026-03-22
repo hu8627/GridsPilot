@@ -29,17 +29,40 @@ export default function FlowCanvas() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // 💡 100% 真实读取 JSON 资产 (加固防崩溃版)
   useEffect(() => {
-    if (!activeFlowId) return;
+    // 如果没有选中任何流程，直接不加载
+    if (!activeFlowId) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
+    
     fetch(`http://localhost:8000/api/flows/${activeFlowId}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.status === 'success' && data.data) {
-          setFlowMeta(data.data); // 记录元数据
+          setFlowMeta(data.data); 
           setNodes(data.data.nodes || []);
           setEdges(data.data.edges || []);
+        } else {
+          console.warn(`⚠️ 警告：后端返回失败或无数据 -> ${data.msg}`);
+          // 即使失败，也要清空画布，不能无限转圈
+          setNodes([]);
+          setEdges([]);
         }
+      })
+      .catch(err => {
+        console.error("❌ 请求 /api/flows 彻底失败：", err);
+        setNodes([]);
+        setEdges([]);
+      })
+      .finally(() => {
+        // 💡 无论成功还是失败，必须强行关闭 Loading！
         setLoading(false);
       });
   }, [activeFlowId, setNodes, setEdges]);

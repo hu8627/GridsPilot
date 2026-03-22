@@ -6,7 +6,7 @@ from app.engine.state import AgentState
 
 class BPNLCompiler:
     """
-    BizFlow 核心编译器：BPNL Schema -> LangGraph StateGraph
+    NexaFlow 核心编译器：BPNL Schema -> LangGraph StateGraph
     """
     def __init__(self, flow_schema: FlowSchema):
         self.flow = flow_schema
@@ -114,7 +114,7 @@ class BPNLCompiler:
             self.workflow.set_entry_point(self.flow.nodes[0].id)
 
         # 4. 编译输出最终图！(挂载 A: Auditor 熔断点)
-        print(f"\n⚙️ BizFlow 编译器: 流程 [{self.flow.name}] 编译完成！包含 {len(self.flow.nodes)} 个节点。")
+        print(f"\n⚙️ NexaFlow 编译器: 流程 [{self.flow.name}] 编译完成！包含 {len(self.flow.nodes)} 个节点。")
         if interrupt_nodes:
             print(f"⚠️ 挂载 Auditor 拦截点: {interrupt_nodes}")
             
