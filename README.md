@@ -14,7 +14,7 @@
   </div>
 
   <br>
-  <img width="1512" height="895" alt="a3a62c8cc57b9205e7c1f95a400f7fff" src="https://github.com/user-attachments/assets/70b92847-7efb-490e-8ecd-bcf7fab4cbfd" />
+  <img width="1510" height="897" alt="截屏2026-03-25 01 28 51" src="https://github.com/user-attachments/assets/7ac9db5e-275b-411b-afa4-3f82489406e8" />
 
   <p>
     <a href="#english-version"><b>English Documentation</b></a> • 
