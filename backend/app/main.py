@@ -263,59 +263,137 @@ async def workspace_chat_agent(req: WorkspaceChatRequest):
 # ==============================================================================
 # 模块 C：资产管理 API (业务流程 Flows)
 # ==============================================================================
-# 高级排版格式的兜底 Demo 流程 (包含 Phase 和 Sublane 容器)
+
+# 💡 乐高式拼接布局：去除沉重的容器包裹，全节点自由对齐横纵轨道
+# ==============================================================================
+# 💡 精密计算过的网格坐标数据 (彻底消除重叠，展现完美的控制流转)
+# ==============================================================================
+# 💡 极其规整、像素级对齐的四相矩阵排版
+# 💡 完美平铺的乐高矩阵布局：彻底剥离父子嵌套，全员绝对坐标！
 mock_default_bpnl = {
     "id": "flow_sdr_001",
-    "name": "智能拓客与CRM录入 (标准排版)",
+    "name": "智能拓客与CRM录入 (绝对矩阵版)",
+    "description": "全网搜集客户线索，经大模型洗筛后，要求人类审批，最终写入老旧 CRM。",
     "nodes": [
-        {"id": "Phase_1", "type": "phaseNode", "position": {"x": 0, "y": 0}, "style": {"width": 640, "height": 800, "zIndex": -1}, "data": {"label": "信息收集与校验", "pill": "CAPTURE", "stats": "2 子泳道"}, "draggable": False, "selectable": False},
-        {"id": "Phase_2", "type": "phaseNode", "position": {"x": 680, "y": 0}, "style": {"width": 320, "height": 800, "zIndex": -1}, "data": {"label": "核心业务处理", "pill": "PROCESSING", "stats": "1 子泳道"}, "draggable": False, "selectable": False},
-        {"id": "Lane_1_Main", "type": "sublaneNode", "parentNode": "Phase_1", "position": {"x": 0, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "▶ 主干流水线"}, "draggable": False, "selectable": False},
-        {"id": "Lane_1_Exception", "type": "sublaneNode", "parentNode": "Phase_1", "position": {"x": 320, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "🛑 告警/重试分支"}, "draggable": False, "selectable": False},
-        {"id": "Lane_2_Audit", "type": "sublaneNode", "parentNode": "Phase_2", "position": {"x": 0, "y": 46}, "style": {"width": 320, "height": 754, "zIndex": 0}, "data": {"label": "⚖️ 核心审核与熔断区"}, "draggable": False, "selectable": False},
-        {"id": "N1_Search", "type": "bizNode", "parentNode": "Lane_1_Main", "extent": "parent", "position": {"x": 30, "y": 60}, "style": {"zIndex": 10}, "data": {"id": "N1_Search", "label": "LinkedIn 搜索", "components": [{"step_id": "s1", "type": "action", "tool_name": "browser_open", "params": {}}]}},
-        {"id": "N2_Check", "type": "bizNode", "parentNode": "Lane_1_Main", "extent": "parent", "position": {"x": 30, "y": 200}, "style": {"zIndex": 10}, "data": {"id": "N2_Check", "label": "判断是否需要接管", "components": [{"step_id": "s2", "type": "judge", "tool_name": "vision_llm", "params": {}}]}},
-        {"id": "N4_Fail_Notify", "type": "bizNode", "parentNode": "Lane_1_Exception", "extent": "parent", "position": {"x": 30, "y": 200}, "style": {"zIndex": 10}, "data": {"id": "N4_Fail_Notify", "label": "失败告警", "components": [{"step_id": "s4", "type": "notify", "tool_name": "dingtalk_bot", "params": {}}]}},
-        {"id": "N3_CRM_Entry", "type": "bizNode", "parentNode": "Lane_2_Audit", "extent": "parent", "position": {"x": 30, "y": 300}, "style": {"zIndex": 10}, "data": {"id": "N3_CRM_Entry", "label": "录入老旧 CRM", "interrupt_before": True, "components": [{"step_id": "s3", "type": "action", "tool_name": "crm_api_submit", "params": {}}]}}
+        # =================================================================
+        # 1. 顶层阶段 (Phases) - 绝对坐标，紧贴上方
+        # =================================================================
+        {
+            "id": "Phase_1_Header", "type": "phaseNode", 
+            "position": {"x": 200, "y": 0}, "style": {"width": 640, "height": 40, "zIndex": -1}, 
+            "data": {"label": "第一阶段：线索捕获与洗筛", "pill": "CAPTURE", "stats": "2 子泳道"}, 
+            "draggable": False, "selectable": False
+        },
+        {
+            "id": "Phase_2_Header", "type": "phaseNode", 
+            "position": {"x": 860, "y": 0}, "style": {"width": 320, "height": 40, "zIndex": -1}, 
+            "data": {"label": "第二阶段：风控与入库", "pill": "PROCESSING", "stats": "1 子泳道"}, 
+            "draggable": False, "selectable": False
+        },
+        
+        # =================================================================
+        # 2. 垂直泳道 (Sublanes) - 绝对坐标，紧贴在 Phase 下方
+        # 🚨 注意：去掉了 parentNode 属性！x 坐标就是它们在全局画板上的真实位置！
+        # =================================================================
+        {
+            "id": "Lane_1_Main", "type": "sublaneNode", 
+            "position": {"x": 200, "y": 46}, "style": {"width": 320, "height": 954, "zIndex": 0}, 
+            "data": {"label": "▶ 自动抓取主线"}, 
+            "draggable": False, "selectable": False
+        },
+        {
+            "id": "Lane_1_Exception", "type": "sublaneNode", 
+            "position": {"x": 520, "y": 46}, "style": {"width": 320, "height": 954, "zIndex": 0}, 
+            "data": {"label": "🛑 风控阻断分支"}, 
+            "draggable": False, "selectable": False
+        },
+        {
+            "id": "Lane_2_Audit", "type": "sublaneNode", 
+            "position": {"x": 860, "y": 46}, "style": {"width": 320, "height": 954, "zIndex": 0}, 
+            "data": {"label": "⚖️ 人工签批入库区"}, 
+            "draggable": False, "selectable": False
+        },
+        
+        # =================================================================
+        # 3. 业务节点 (BizNodes) - 绝对坐标，精准落入对应的行列交叉口！
+        # =================================================================
+        
+        # [System 轨道 - Y: 100] | [自动抓取主线 - X: 240]
+        {
+            "id": "N1_Search", "type": "bizNode", 
+            "position": {"x": 240, "y": 100}, "style": {"zIndex": 10}, 
+            "data": {
+                "label": "全网信息抓取", 
+                "components": [{"step_id": "s1", "type": "action", "tool_name": "browser_open", "executor": "system", "params": {"max_retries": 2}}]
+            }
+        },
+        
+        # [Agent 轨道 - Y: 350] | [自动抓取主线 - X: 240]
+        {
+            "id": "N2_Check", "type": "bizNode", 
+            "position": {"x": 240, "y": 350}, "style": {"zIndex": 10}, 
+            "data": {
+                "label": "大模型价值洗筛", 
+                "components": [{"step_id": "s2", "type": "judge", "tool_name": "vision_llm_parser", "executor": "agent", "assignee_id": "agent_researcher", "params": {"max_retries": 3}}]
+            }
+        },
+        
+        # [System 轨道 - Y: 100] | [风控阻断分支 - X: 560]
+        {
+            "id": "N4_Fail_Notify", "type": "bizNode", 
+            "position": {"x": 560, "y": 100}, "style": {"zIndex": 10}, 
+            "data": {
+                "label": "低分线索告警", 
+                "components": [{"step_id": "s4", "type": "notify", "tool_name": "lark_bot_send", "executor": "system", "params": {}}]
+            }
+        },
+        
+        # [Human 轨道 - Y: 600] | [人工签批入库区 - X: 900]
+        {
+            "id": "N3_CRM_Entry", "type": "bizNode", 
+            "position": {"x": 900, "y": 600}, "style": {"zIndex": 10}, 
+            "data": {
+                "label": "审批写入老旧 CRM", 
+                "interrupt_before": True, 
+                "components": [
+                    {"step_id": "s3_1", "type": "input", "tool_name": "human_approval_form", "executor": "human", "params": {"form_schema": [{"field": "discount_rate", "type": "number", "label": "批准最高折扣", "required": True}]}},
+                    {"step_id": "s3_2", "type": "action", "tool_name": "crm_api_submit", "executor": "system", "params": {}}
+                ]
+            }
+        }
     ],
     "edges": [
         {"id": "e1", "source": "N1_Search", "target": "N2_Check", "animated": True, "style": {"stroke": "#3b82f6", "strokeWidth": 2}},
-        {"id": "e2", "source": "N2_Check", "target": "N3_CRM_Entry", "label": "No Captcha", "animated": True, "style": {"stroke": "#10b981", "strokeWidth": 2, "strokeDasharray": "5 5"}},
-        {"id": "e3", "source": "N2_Check", "target": "N4_Fail_Notify", "label": "Has Captcha", "animated": True, "style": {"stroke": "#ef4444", "strokeWidth": 2}}
+        {"id": "e2", "source": "N2_Check", "target": "N3_CRM_Entry", "label": "高分价值线索 (跨阶段)", "animated": True, "style": {"stroke": "#10b981", "strokeWidth": 2, "strokeDasharray": "5 5"}},
+        {"id": "e3", "source": "N2_Check", "target": "N4_Fail_Notify", "label": "价值过低 (告警)", "animated": True, "style": {"stroke": "#ef4444", "strokeWidth": 2}}
     ]
 }
+
 
 @app.get("/api/flows")
 async def get_all_flows():
     flows = FileStorage.list_all("flows")
     if not flows:
+        print("💡 [System] 首次启动，正在注入默认 Demo 流程资产...")
         FileStorage.save("flows", mock_default_bpnl, mock_default_bpnl["id"])
         flows = [mock_default_bpnl]
     return {"status": "success", "data": flows}
 
 @app.get("/api/flows/{flow_id}")
 async def get_flow_by_id(flow_id: str):
+    """根据 ID 获取完整的 BPNL 图数据 (带自动兜底生成)"""
     flow_data = FileStorage.get("flows", flow_id)
+    
     if not flow_data:
+        print(f"⚠️ [API] 在 FileDB 中未找到图纸 {flow_id}。")
         empty_canvas_fallback = {
             "id": flow_id, "name": f"未命名流程 ({flow_id})", "description": "系统自动创建的空画板",
-            "nodes": [
-                {"id": "Phase_1", "type": "phaseNode", "position": {"x": 0, "y": 0}, "style": {"width": 360, "height": 600, "zIndex": -1}, "data": {"label": "新建业务阶段", "pill": "NEW PHASE", "stats": "0 子泳道"}, "draggable": False, "selectable": False}
-            ],
-            "edges": []
+            "nodes": [], "edges": []
         }
         FileStorage.save("flows", empty_canvas_fallback, flow_id)
         return {"status": "success", "data": empty_canvas_fallback, "msg": "已自动为您创建空画板"}
     
     return {"status": "success", "data": flow_data}
-
-@app.post("/api/flows")
-async def save_flow(flow: FlowSchema):
-    try:
-        FileStorage.save("flows", flow.dict(), flow.id)
-        return {"status": "success", "msg": "流程图资产已成功保存！"}
-    except Exception as e:
-        return {"status": "error", "msg": f"保存失败: {str(e)}"}
 
 # ==============================================================================
 # 模块 D：智能体自我进化 API (Optimizer Agent)
