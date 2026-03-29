@@ -15,6 +15,8 @@
     <a href="#" style="cursor: not-allowed; filter: grayscale(100%); opacity: 0.7;">
       <img src="https://img.shields.io/badge/Windows_Version-Coming_Soon-lightgrey?style=for-the-badge&logo=windows" height="40">
     </a>
+
+
   </div>
 
   <br>
@@ -24,7 +26,7 @@
   > **"这可能更接近未来人类与 AI 协同工作的真实形态——AI 负责执行，人类负责监督和兜底。"**
 
   <br>
-  <img width="100%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid #1E293B;" alt="GridsPilot Studio Interface" src="https://github.com/user-attachments/assets/7ac9db5e-275b-411b-afa4-3f82489406e8" />
+  <img width="100%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid #1E293B;" alt="GridsPilot Studio Interface" src="https://github.com/user-attachments/assets/12f1795d-b664-4618-a7b2-03b45b43e40e" />
 
   <br><br>
 
