@@ -7,6 +7,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { useExecStore } from '@/store/execStore';
+import { useLocaleStore } from '@/store/localeStore'; // 💡 引入语言包 Store
+import { dict } from '@/lib/i18n'; // 💡 引入大字典
+import { Globe2 } from 'lucide-react'; // 💡 引入一个地球图标
 
 // ==============================================================================
 // 🎨 图标库 (Lucide Icons)
@@ -140,6 +143,8 @@ const FlowListSidebar = () => {
 // 主界面：GridsPilot OS 壳子 (The Shell)
 // ==============================================================================
 export default function GridsPilotOS() {
+  const { locale, setLocale } = useLocaleStore();
+  const t = dict[locale]; // 💡 取得当前语言包
   const { currentView, setCurrentView, activeFlowId } = useUIStore();
   const { connectWs, logs } = useExecStore();
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -217,76 +222,86 @@ export default function GridsPilotOS() {
           
           {/* ================================================================= */}
         {/* 🌟 终极导航树 (The Ultimate OS Dock) - 展现 5 大核心业务域 */}
-        {/* ================================================================= */}
         <div className="flex-1 overflow-y-auto py-2 custom-scrollbar pr-1">
           
-          {/* 1. 内部管理与生产力 (Internal Productivity) */}
-          <NavGroup title="Copilots">
-            {/* 💡 重新定义：Copilot 是员工的私有/内部群组工作区，用于调度被封装后的专属 Agents */}
-            <NavItem id="chat" icon={<MessageSquare size={16} />} label="My Copilots" />
-            {/* 💡 Inbox 属于内部员工的待办处理台 */}
-            <NavItem id="workbench" icon={<Inbox size={16} />} label="Inbox (Tickets)" />
+          {/* 1. 协同工作区 (Collaboration) */}
+          <NavGroup title={t.nav.grp_collab}>
+            <NavItem id="workspace" icon={<Hash size={16} />} label={t.nav.workspace} />
+            <NavItem id="chat" icon={<MessageSquare size={16} />} label={t.nav.copilot} />
+            <NavItem id="workbench" icon={<Inbox size={16} />} label={t.nav.inbox} />
           </NavGroup>
 
-          {/* 2. 外部业务协同 (External Collaboration) */}
-          <NavGroup title="Business Workspaces">
-            {/* 💡 重新定义：Workspace 是对接外部场景（客服/销售）的公共频道大厅 */}
-            <NavItem id="workspace" icon={<Hash size={16} />} label="Service Workspaces" />
+          {/* 2. 编排与组装区 (Orchestration) */}
+          <NavGroup title={t.nav.grp_orch}>
+            <NavItem id="triggers" icon={<Zap size={16} />} label={t.nav.triggers} />
+            <NavItem id="studio" icon={<Network size={16} />} label={t.nav.studio} />
+            <NavItem id="components" icon={<Blocks size={16} />} label={t.nav.components} /> 
           </NavGroup>
 
-          {/* 3. 编排与组装区 (架构师的车间) */}
-          <NavGroup title="Orchestration">
-            <NavItem id="triggers" icon={<Zap size={16} />} label="Triggers" /> {/* 💡 新增：定义业务流何时被唤醒 */}
-            <NavItem id="studio" icon={<Network size={16} />} label="Studio" />
-            <NavItem id="components" icon={<Blocks size={16} />} label="Components" /> 
+          {/* 3. AI 算力总成 (AI Workforces) */}
+          <NavGroup title={t.nav.grp_workforces}>
+            <NavItem id="agents" icon={<Users size={16} />} label={t.nav.agents} />
+            <NavItem id="prompts" icon={<Quote size={16} />} label={t.nav.prompts} /> 
+            <NavItem id="models" icon={<Cpu size={16} />} label={t.nav.models} />
+            <NavItem id="skills" icon={<Wrench size={16} />} label={t.nav.skills} />
           </NavGroup>
 
-          {/* 4. AI 算力总成 (数字员工的五脏六腑) 💡 你的神级重组 */}
-          <NavGroup title="AI Workforces">
-            <NavItem id="agents" icon={<Users size={16} />} label="Agents" />
-            <NavItem id="prompts" icon={<Quote size={16} />} label="Prompts" /> 
-            <NavItem id="skills" icon={<Wrench size={16} />} label="Skills" />
-            <NavItem id="models" icon={<Cpu size={16} />} label="Models" />
+          {/* 4. 业务生态底座 (Business Ecosystem) */}
+          <NavGroup title={t.nav.grp_eco}>
+            <NavItem id="schemas" icon={<Layers size={16} />} label={t.nav.schemas} />
+            <NavItem id="assets" icon={<Archive size={16} />} label={t.nav.assets} />
+            <NavItem id="integrations" icon={<Share2 size={16} />} label={t.nav.integrations} />
+          </NavGroup>
+
+          {/* 5. 治理域 (Governance) */}
+          <NavGroup title={t.nav.grp_gov}>
+            <NavItem id="rules" icon={<Scale size={16} />} label={t.nav.rules} />
+            <NavItem id="guards" icon={<ShieldAlert size={16} />} label={t.nav.guards} />
+            <NavItem id="monitors" icon={<Activity size={16} />} label={t.nav.monitors} />  
+          </NavGroup>
+
+          {/* 6. 记录与洞察域 (Records & Insights) */}
+          <NavGroup title={t.nav.grp_records}>
+            <NavItem id="traces" icon={<ListTree size={16} />} label={t.nav.traces} />
+            <NavItem id="cases" icon={<Briefcase size={16} />} label={t.nav.cases} />
+            <NavItem id="tickets" icon={<Ticket size={16} />} label={t.nav.tickets} />
+            <NavItem id="ledger" icon={<Database size={16} />} label={t.nav.ledger} />
+          </NavGroup>
+
+        </div>
+
+        </div>
+
+        {/* 左侧底部栏 */}
+        <div className="p-4 border-t border-slate-800/60 flex items-center justify-between mt-auto bg-[#0B0F19]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+              Me
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-slate-200 truncate">Architect</div>
+              <div className="text-[10px] text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Local Engine</div>
+            </div>
+          </div>
+          
+          {/* 💡 全局多语言切换器 */}
+          {/* 💡 全局多语言切换器 (已修复悬浮缝隙 Bug) */}
+          <div className="relative group cursor-pointer">
+            <div className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors">
+              <Globe2 size={16} />
+              <span className="text-[10px] font-bold uppercase">{locale}</span>
+            </div>
             
-          </NavGroup>
-
-          {/* 5. 业务生态底座 (系统的物理世界映射) 💡 你的神级重组 */}
-          <NavGroup title="Business Ecosystem">
-            <NavItem id="schemas" icon={<Layers size={16} />} label="Business Schemas" />
-            <NavItem id="assets" icon={<Archive size={16} />} label="Business Data" />
-            <NavItem id="integrations" icon={<Share2 size={16} />} label="Integrations" />
-          </NavGroup>
-
-          {/* ========================================================= */}
-          {/* 🌟 6. 治理域 (Governance) - 定规矩、设探针、看大盘 */}
-          {/* ========================================================= */}
-          <NavGroup title="Governance">
-            <NavItem id="rules" icon={<Scale size={16} />} label="Guidelines & Rules" />
-            <NavItem id="guards" icon={<ShieldAlert size={16} />} label="Security Guards" /> {/* 💡 拆分：纯粹的探针配置 */}
-            <NavItem id="monitors" icon={<Activity size={16} />} label="Global Monitors" />  {/* 💡 拆分：纯粹的数据监控大盘 */}
-          </NavGroup>
-
-          {/* 7. 记录与洞察域 (沉淀数据，反哺迭代) - 严格遵循数据价值升维漏斗 */}
-          <NavGroup title="Records & Insights">
-            <NavItem id="traces" icon={<ListTree size={16} />} label="Traces" />
-            <NavItem id="cases" icon={<Briefcase size={16} />} label="Cases" />
-            <NavItem id="tickets" icon={<Ticket size={16} />} label="Tickets" />
-            <NavItem id="ledger" icon={<Database size={16} />} label="Ledger" />
-          </NavGroup>
-
-        </div>
-
-        </div>
-
-        <div className="p-4 border-t border-slate-800/60 flex items-center gap-3 hover:bg-slate-800/40 cursor-pointer transition-colors mt-auto">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
-            Me
+            {/* 💡 核心修复：把 mb-2 换成 pb-2 (padding-bottom)。
+                这样在菜单和按钮之间就形成了一个透明的实体点击区，鼠标滑过时绝不会断开 Hover 状态！ */}
+            <div className="absolute bottom-full right-0 pb-2 w-24 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
+              <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                <div onClick={() => setLocale('en')} className={`px-3 py-2 text-xs hover:bg-slate-800 transition-colors ${locale === 'en' ? 'text-blue-400 font-bold' : 'text-slate-300'}`}>English</div>
+                <div onClick={() => setLocale('zh')} className={`px-3 py-2 text-xs hover:bg-slate-800 transition-colors border-t border-slate-800/50 ${locale === 'zh' ? 'text-blue-400 font-bold' : 'text-slate-300'}`}>中文</div>
+                <div onClick={() => setLocale('ja')} className={`px-3 py-2 text-xs hover:bg-slate-800 transition-colors border-t border-slate-800/50 ${locale === 'ja' ? 'text-blue-400 font-bold' : 'text-slate-300'}`}>日本語</div>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-slate-200 truncate">Architect</div>
-            <div className="text-[10px] text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Local Engine</div>
-          </div>
-          <Settings size={16} className="text-slate-500" />
         </div>
 
       </div>
