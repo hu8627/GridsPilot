@@ -24,7 +24,7 @@
   > **"这可能更接近未来人类与 AI 协同工作的真实形态——AI 负责执行，人类负责监督和兜底。"**
 
   <br>
-  <img width="100%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid #1E293B;" alt="GridsPilot Studio Interface" src="https://github.com/user-attachments/assets/7ac9db5e-275b-411b-afa4-3f82489406e8" />
+  <img width="100%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid #1E293B;" alt="GridsPilot Studio Interface" src="https://github.com/user-attachments/assets/1951e61c-a84d-4305-a623-7223b42573f3" />
 
   <br><br>
 
