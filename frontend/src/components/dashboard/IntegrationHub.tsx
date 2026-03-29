@@ -15,8 +15,20 @@ export default function IntegrationHub() {
     setLoading(true);
     fetch('http://localhost:8000/api/integrations')
       .then(res => res.json())
-      .then(data => { setIntegrations(data.data); setLoading(false); })
-      .catch(err => { console.error(err); setLoading(false); });
+      .then(data => { 
+        // 💡 绝杀防御：即使后端返回 undefined，强制回退为 []，map 绝对不会崩！
+        if (data.status === 'success') {
+          setIntegrations(Array.isArray(data.data) ? data.data : []); 
+        } else {
+          setIntegrations([]);
+        }
+        setLoading(false); 
+      })
+      .catch(err => { 
+        console.error(err); 
+        setIntegrations([]); // 💡 网络错误也要兜底
+        setLoading(false); 
+      });
   };
 
   useEffect(() => { fetchIntegrations(); }, []);

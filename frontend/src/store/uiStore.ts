@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-type ViewType = 'chat' | 'workspace' | 'studio' | 'agents' | 'models' | 'skills' | 'integrations' | 'assets' | 'prompts' | 'monitor' | 'ledger' | 'workbench';
+type ViewType = 
+  | 'workspace' | 'chat' | 'workbench'
+  | 'studio' | 'components'
+   | 'agents' | 'triggers' | 'prompts' | 'skills' | 'models'
+  | 'schemas' | 'assets' | 'integrations'
+  | 'rules' | 'guards' | 'monitors'
+  | 'traces' | 'cases' | 'tickets' | 'ledger';
 
 interface UIState {
   currentView: ViewType;
@@ -10,12 +16,12 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  currentView: 'workspace', // 默认进 Workspace 群聊
+  currentView: 'workspace', // 默认进入多智能体协同群聊
   activeFlowId: null,
   
-  // 💡 修复：点击导航栏时，如果切到 Studio，不强制清空 activeFlowId，而是让它保持最后一次看的那张图
   setCurrentView: (view) => set((state) => ({ 
     currentView: view, 
+    // 💡 只有切到 Studio 时保留图纸记忆，切到其他页面清除画板上下文
     activeFlowId: view === 'studio' ? state.activeFlowId : null 
   })),
   

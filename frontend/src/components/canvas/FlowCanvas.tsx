@@ -2,22 +2,24 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { 
   ReactFlow, Background, BackgroundVariant, Controls, MiniMap, 
-  useNodesState, useEdgesState, addEdge, Connection, Edge
+  useNodesState, useEdgesState, addEdge, Connection, Edge 
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Loader2, PlayCircle, Edit3, Save, CheckCircle2, DownloadCloud, UploadCloud, AlertTriangle, Settings2, Network, Sparkles, TerminalSquare, Maximize2, Minimize2, ChevronDown, X } from 'lucide-react';
+import { Loader2, PlayCircle, Edit3, Save, CheckCircle2, DownloadCloud, UploadCloud, AlertTriangle, Settings2, Network, Sparkles, TerminalSquare, Maximize2, ChevronDown, X, Trash2, Cpu, Globe, UserCircle, Plus, Users } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useExecStore } from '@/store/execStore';
 
 import BizNode from './BizNode';
 import PhaseNode from './PhaseNode';
 import SublaneNode from './SublaneNode';
-import RowNode from './RowNode'; 
+import RowNode from './RowNode';
 
 const SUBLANE_WIDTH = 320;
 const PHASE_HEADER_H = 46;
 
-// 💡 将横向轨道的起点设为 x=0，让它们成为画板的地基
+// =================================================================
+// 💡 终极对齐：四权分立 (The Four Pillars Paradigm) 横向轨道
+// =================================================================
 const BACKGROUND_ROWS = [
   { id: 'row_system', type: 'rowNode', position: { x: 0, y: 50 }, style: { height: 250, zIndex: -2 }, data: { label: '⚙️ SYSTEM (系统基建)', color: 'bg-blue-900/10', textColor: 'text-blue-400' }, draggable: false, selectable: false },
   { id: 'row_agent', type: 'rowNode', position: { x: 0, y: 300 }, style: { height: 250, zIndex: -2 }, data: { label: '🧠 AGENT (智能体推理)', color: 'bg-fuchsia-900/10', textColor: 'text-fuchsia-400' }, draggable: false, selectable: false },
@@ -54,11 +56,25 @@ export default function FlowCanvas() {
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(true);
   const [inspectNode, setInspectNode] = useState<any>(null);
 
+  // 🌟 全局可用技能库 (Micro App Store)
+  const [availableSkills, setAvailableSkills] = useState<any[]>([]);
+
   // =================================================================
-  // 1. 初始化拉取图纸数据 (防弹级健壮版)
+  // 1. 初始化拉取图纸与技能数据 (防弹级)
   // =================================================================
   useEffect(() => {
-    if (!activeFlowId) { setLoading(false); return; }
+    fetch('http://localhost:8000/api/skills')
+      .then(res => res.json())
+      .then(data => { if (data.status === 'success') setAvailableSkills(data.data); })
+      .catch(err => console.error("Failed to load skills:", err));
+  },[]);
+
+  useEffect(() => {
+    if (!activeFlowId) { 
+      setLoading(false); 
+      setNodes([...BACKGROUND_ROWS] as any);
+      return; 
+    }
     
     setLoading(true); 
     setError(null);
@@ -76,7 +92,6 @@ export default function FlowCanvas() {
           // 🚨 核心排雷：过滤掉从后端传来的旧底带，强制使用干净的 BACKGROUND_ROWS
           const cleanNodes = (data.data.nodes || []).filter((n: any) => n.type !== 'rowNode');
           setNodes([...BACKGROUND_ROWS, ...cleanNodes] as any);
-          
           setEdges(Array.isArray(data.data.edges) ? data.data.edges : []);
         } else {
           setError(data.msg || "无法解析底层 JSON 文件");
@@ -100,28 +115,22 @@ export default function FlowCanvas() {
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
   const onNodeClick = (event: React.MouseEvent, node: any) => {
-    // 点到底座背景，什么都不做
     if (node.type === 'rowNode') {
       setSelectedNode(null); setInsights(null); setInspectNode(null); return;
     }
     
-    // 💡 监控模式下：弹出轻量级只读悬浮卡片
     if (!editMode) {
-      setInspectNode({
-        ...node,
-        // 获取鼠标点击的相对坐标，用来定位悬浮卡片
-        mouseX: event.clientX,
-        mouseY: event.clientY
-      });
+      setInspectNode({ ...node, mouseX: event.clientX, mouseY: event.clientY });
       return;
     }
     
-    // ✏️ 编排模式下：原有逻辑保持不变，打开右侧抽屉
     setSelectedNode(node);
+    
+    // 模拟基于 Ledger 历史的 AI 诊断
     if (node.id?.includes('CRM') || node.data?.interrupt_before) {
       setInsights({
         targetNode: node.id, failCount: 14,
-        reason: '人类接管记录显示，AI 多次无法找到 "Save" 按钮。经分析 DOM 快照，系统存在偶发性网络延迟。',
+        reason: '人类接管记录显示，AI 多次无法找到 "Save" 按钮。经分析 DOM 快照，系统存在网络延迟。',
         suggestion: '建议增加 [Wait_For_Selector] 参数，或 [重试机制 (Max Retries: 3)]。',
         autoFixData: { max_retries: 3, components: [{ type: 'action', tool_name: 'crm_api_submit', params: { wait_timeout: 5000, retry: true } }] }
       });
@@ -130,13 +139,16 @@ export default function FlowCanvas() {
 
   const updateNodeData = (nodeId: string, newData: any) => {
     setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n));
-    setSelectedNode((prev: any) => ({ ...prev, data: { ...prev.data, ...newData } }));
+    setSelectedNode((prev: any) => {
+      if (!prev || prev.id !== nodeId) return prev;
+      return { ...prev, data: { ...prev.data, ...newData } };
+    });
   };
 
   const handleAutoFix = () => {
     if (!selectedNode || !insights) return;
     updateNodeData(selectedNode.id, insights.autoFixData);
-    alert('✨ AI 建议已采纳！底层 JSON 配置已自动重写。下一次执行将自动进行智能重试。');
+    alert('✨ AI 建议已采纳！底层 JSON 配置已自动重写。');
     setInsights(null); 
   };
 
@@ -166,7 +178,6 @@ export default function FlowCanvas() {
   // =================================================================
   // 3. 资产固化与流转 (保存、导出、导入)
   // =================================================================
-  
   const filterOutBaseRows = (currentNodes: any[]) => currentNodes.filter(n => n.type !== 'rowNode');
 
   const handleSaveFlow = async () => {
@@ -219,22 +230,14 @@ export default function FlowCanvas() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-
   // =================================================================
-  // 4. 依赖注入与合并
+  // 4. UI 渲染与节点透传
   // =================================================================
   const nodeTypesMerged = useMemo(() => ({ bizNode: BizNode, phaseNode: PhaseNode, sublaneNode: SublaneNode, rowNode: RowNode }), []);
+  
   const nodesWithProps = useMemo(() => {
     return nodes.map(n => ({
-      ...n,
-      data: {
-        ...n.data,
-        editMode, 
-        onAddSublane,
-        onDeletePhase,
-        onDeleteSublane,
-        onUpdateLabel
-      }
+      ...n, data: { ...n.data, editMode, onAddSublane, onDeletePhase, onDeleteSublane, onUpdateLabel }
     }));
   }, [nodes, editMode, onAddSublane, onDeletePhase, onDeleteSublane, onUpdateLabel]);
 
@@ -248,10 +251,9 @@ export default function FlowCanvas() {
   if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 bg-[#050505]"><AlertTriangle className="mb-4" size={32} /> {error}</div>;
 
   return (
-    // 🌟 最外层容器：纵向布局 (上：内容区，下：底部控制台)
     <div className="w-full h-full flex flex-col bg-[#050505] relative overflow-hidden">
       
-      {/* 🚀 悬浮控制条 (绝对定位，极高层级) */}
+      {/* 🚀 浮动控制条 */}
       <div className="absolute top-4 left-4 z-50 flex gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-lg border border-slate-700/50 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
         <button onClick={() => toggleMode(false)} className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded transition-colors ${!editMode ? 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}>
           <PlayCircle size={14}/> 运行监控模式
@@ -284,7 +286,7 @@ export default function FlowCanvas() {
         )}
       </div>
 
-      {/* 🌟 内容区：横向布局 (左：画板，右：属性面板) */}
+      {/* 🌟 核心：横向分栏区 (左画布，右属性面板) */}
       <div className="flex-1 flex w-full relative min-h-0">
         
         {/* 左侧：React Flow 画板 */}
@@ -294,157 +296,241 @@ export default function FlowCanvas() {
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={onNodeClick}
             nodeTypes={nodeTypesMerged}
             nodesDraggable={editMode} nodesConnectable={editMode} elementsSelectable={editMode}
-            onlyRenderVisibleElements={false} // 🚨 极度关键：防止底色带被剪裁导致白屏！
-            onPaneClick={() => setInspectNode(null)} // 点击空白处关掉弹窗
-
+            onPaneClick={() => { setInspectNode(null); setSelectedNode(null); }} 
+            onlyRenderVisibleElements={false} // 🚨 防止画布底带被剪切消失
             fitView minZoom={0.1}
           >
             <Background color="#1e293b" gap={24} size={2} variant={BackgroundVariant.Dots} className="opacity-40" />
             <Controls className="fill-slate-400 bg-slate-800 border-slate-700" />
-            {/* 只在编排模式展示地图 */}
-            {editMode && <MiniMap nodeColor="#3b82f6" maskColor="rgba(2, 6, 23, 0.8)" className="bg-slate-900 border border-slate-700" />}
+            {/* 💡 修复点：黑暗模式下的小地图背景 */}
+            {editMode && <MiniMap nodeColor="#3b82f6" maskColor="rgba(2, 6, 23, 0.8)" style={{ backgroundColor: '#0B0F19' }} className="border border-slate-700 rounded-md overflow-hidden" />}
           </ReactFlow>
         </div>
 
-        {/* 右侧：属性配置面板 (仅编排模式) */}
+        {/* ✏️ 右侧：云端 IDE 属性面板 (仅编排模式可见) */}
         {editMode && (
-          <div className="w-[320px] bg-[#0E121B] border-l border-slate-800/60 flex flex-col h-full shrink-0 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-40 relative">
+          <div className="w-[340px] bg-[#0E121B] border-l border-slate-800/60 flex flex-col h-full shrink-0 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-40 relative">
             <div className="p-5 border-b border-slate-800/60 flex items-center gap-2 bg-[#0B0F19] shrink-0">
               <Settings2 size={18} className="text-slate-400"/>
-              <h2 className="text-sm font-bold text-slate-200">Node Properties</h2>
+              <h2 className="text-sm font-bold text-slate-200">{selectedNode ? 'Node Configuration' : 'Workspace Palette'}</h2>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+              
+              {/* ========================================================= */}
+              {/* 🌟 兵器库 (Node Palette) */}
+              {/* ========================================================= */}
               {!selectedNode ? (
-                <div className="text-center py-20 text-xs text-slate-500 leading-loose flex flex-col items-center gap-3">
-                  <Network size={32} className="text-slate-700/50" />
-                  <p>点击左侧画布中的任意节点或连线<br/>查看并修改详细配置</p>
+                <div className="animate-in fade-in duration-200">
+                  <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-4 flex items-center gap-1.5">
+                    <TerminalSquare size={12}/> Drag or Click to Add Nodes
+                  </div>
+                  <p className="text-[11px] text-slate-500 mb-6 leading-relaxed">请选择需要部署的算力节点。系统将自动将其空投至对应的矩阵轨道中。</p>
+                  
+                  <div className="space-y-3">
+                    <button onClick={() => {
+                        const newNode = { id: `N_Sys_${Date.now()}`, type: 'bizNode', position: { x: 300, y: 100 }, style: { zIndex: 10 }, data: { label: '新建系统动作', components: [] } };
+                        setNodes(nds => nds.concat(newNode));
+                      }} className="w-full flex items-center justify-between p-3 bg-blue-950/10 hover:bg-blue-900/30 border border-blue-900/50 rounded-lg transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-blue-900/40 text-blue-400 flex items-center justify-center"><Cpu size={16}/></div>
+                        <div className="text-left"><div className="text-xs font-bold text-blue-400">System Node</div><div className="text-[9px] text-slate-500 font-mono">Y-Axis: 50~300</div></div>
+                      </div>
+                      <Plus size={14} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+
+                    <button onClick={() => {
+                        const newNode = { id: `N_Agt_${Date.now()}`, type: 'bizNode', position: { x: 300, y: 350 }, style: { zIndex: 10 }, data: { label: '新建大模型推理', components: [] } };
+                        setNodes(nds => nds.concat(newNode));
+                      }} className="w-full flex items-center justify-between p-3 bg-fuchsia-950/10 hover:bg-fuchsia-900/30 border border-fuchsia-900/50 rounded-lg transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-fuchsia-900/40 text-fuchsia-400 flex items-center justify-center"><Sparkles size={16}/></div>
+                        <div className="text-left"><div className="text-xs font-bold text-fuchsia-400">Agent Node</div><div className="text-[9px] text-slate-500 font-mono">Y-Axis: 300~550</div></div>
+                      </div>
+                      <Plus size={14} className="text-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+
+                    <button onClick={() => {
+                        const newNode = { id: `N_Hum_${Date.now()}`, type: 'bizNode', position: { x: 300, y: 600 }, style: { zIndex: 10 }, data: { label: '新建人工审批表单', interrupt_before: true, components: [] } };
+                        setNodes(nds => nds.concat(newNode));
+                      }} className="w-full flex items-center justify-between p-3 bg-orange-950/10 hover:bg-orange-900/30 border border-orange-900/50 rounded-lg transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-orange-900/40 text-orange-400 flex items-center justify-center"><Users size={16}/></div>
+                        <div className="text-left"><div className="text-xs font-bold text-orange-400">Human Node</div><div className="text-[9px] text-slate-500 font-mono">Y-Axis: 550~750</div></div>
+                      </div>
+                      <Plus size={14} className="text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                    
+                    <button onClick={() => {
+                        const newNode = { id: `N_Hw_${Date.now()}`, type: 'bizNode', position: { x: 300, y: 800 }, style: { zIndex: 10 }, data: { label: '新建物理硬件驱动', components: [] } };
+                        setNodes(nds => nds.concat(newNode));
+                      }} className="w-full flex items-center justify-between p-3 bg-emerald-950/10 hover:bg-emerald-900/30 border border-emerald-900/50 rounded-lg transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-emerald-900/40 text-emerald-400 flex items-center justify-center"><Cpu size={16}/></div>
+                        <div className="text-left"><div className="text-xs font-bold text-emerald-400">Hardware Node</div><div className="text-[9px] text-slate-500 font-mono">Y-Axis: 750~950</div></div>
+                      </div>
+                      <Plus size={14} className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  </div>
+                  
+                  <div className="mt-8 pt-6 border-t border-slate-800/60">
+                     <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3">Container Management</div>
+                     <button onClick={() => onAddSublane(`Phase_${Date.now()}`)} className="w-full bg-slate-800/50 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 rounded-lg border border-slate-700 transition-colors mb-2">
+                       + 新增 阶段容器 (Phase)
+                     </button>
+                     <p className="text-[9px] text-slate-600 text-center">容器用于横向切分业务流的时间状态</p>
+                  </div>
                 </div>
               ) : (
+                // =========================================================
+                // 当选中节点时，显示原有的 Node Configuration 属性配置表单
+                // =========================================================
                 <div className="animate-in fade-in duration-200 space-y-6">
-                  {/* 节点标题 */}
+                  
+                  {/* 节点名称输入区 */}
                   <div className="bg-[#050505] p-4 rounded-lg border border-slate-800/80 shadow-inner">
-                    <div className="text-[9px] font-bold tracking-widest uppercase text-indigo-500 mb-1.5 flex items-center gap-1.5"><Network size={12}/> {selectedNode.type || 'bizNode'}</div>
-                    <div className="text-[15px] font-bold text-slate-200">{selectedNode.data?.label || '未命名'}</div>
+                    <div className="text-[9px] font-bold tracking-widest uppercase text-indigo-500 mb-1.5 flex items-center gap-1.5"><Network size={12}/> {selectedNode.type}</div>
+                    <input 
+                      className="w-full bg-transparent text-[15px] font-bold text-slate-200 outline-none border-b border-transparent focus:border-blue-500 transition-colors" 
+                      value={selectedNode.data?.label || ''} 
+                      onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })} 
+                      placeholder="节点显示名称"
+                    />
                     <div className="text-[10px] font-mono text-slate-600 mt-1">{selectedNode.id}</div>
                   </div>
 
                   {/* AI 诊断 */}
                   {insights && (
                     <div className="bg-orange-950/20 border border-orange-500/40 rounded-xl p-4 relative overflow-hidden shadow-[0_4px_20px_rgba(249,115,22,0.05)]">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div>
-                      <h4 className="text-[12px] font-bold text-orange-400 flex items-center gap-1.5 mb-3"><Sparkles size={14} className="animate-pulse"/> Optimizer Agent 迭代建议</h4>
-                      <div className="text-[11px] text-orange-300/80 leading-relaxed mb-4 space-y-2">
-                        <p><strong className="text-orange-300">📊 运行体检：</strong>该节点过去 30 天触发人工接管 <span className="font-mono font-bold text-red-400 bg-red-950/50 px-1.5 py-0.5 rounded border border-red-500/30">{insights.failCount}</span> 次。</p>
-                        <p><strong className="text-orange-300">🔍 根因分析：</strong>{insights.reason}</p>
-                        <p><strong className="text-orange-300">🛠 修复建议：</strong>{insights.suggestion}</p>
-                      </div>
-                      <button onClick={handleAutoFix} className="w-full bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/50 text-orange-400 text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">✨ 一键采纳建议并重写配置</button>
+                      <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                      <h4 className="text-[12px] font-bold text-orange-400 flex items-center gap-1.5 mb-3"><Sparkles size={14} className="animate-pulse"/> Optimizer Suggestion</h4>
+                      <div className="text-[11px] text-orange-300/80 leading-relaxed mb-3">{insights.suggestion}</div>
+                      <button onClick={handleAutoFix} className="w-full bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/50 text-orange-400 text-xs font-bold py-1.5 rounded-lg transition-colors shadow-md">✨ 一键采纳</button>
                     </div>
                   )}
 
-                  {/* 基础设置 */}
+                  {/* 动态组件库挂载区 */}
                   <div>
-                    <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3 border-b border-slate-800 pb-1.5">Basic Settings</div>
-                    <div>
-                      <label className="block text-[10px] text-slate-400 mb-1.5">展示名称</label>
-                      <input className="w-full bg-[#050505] border border-slate-700/80 text-slate-200 text-xs rounded-md px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner" value={selectedNode.data?.label || ''} onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })} />
+                    <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3 border-b border-slate-800 pb-1.5">Mounted Capabilities</div>
+                    
+                    {selectedNode.data?.components?.map((comp: any, idx: number) => {
+                      const isAgent = comp.executor === 'agent';
+                      const isHuman = comp.executor === 'human';
+                      const isHardware = comp.executor === 'hardware';
+
+                      let boxColor = 'border-slate-800/80 bg-[#050505]';
+                      let tagColor = 'text-slate-400 bg-slate-800/50 border-slate-700/50';
+                      let toolColor = 'text-blue-400';
+
+                      if (isAgent) { boxColor = 'border-fuchsia-500/30 bg-fuchsia-950/10'; tagColor = 'text-fuchsia-400 bg-fuchsia-950/50 border-fuchsia-900/50'; toolColor = 'text-fuchsia-300'; }
+                      else if (isHuman) { boxColor = 'border-orange-500/30 bg-orange-950/10'; tagColor = 'text-orange-400 bg-orange-950/50 border-orange-900/50'; toolColor = 'text-orange-300'; }
+                      else if (isHardware) { boxColor = 'border-emerald-500/40 bg-emerald-950/10'; tagColor = 'text-emerald-400 bg-emerald-950/50 border-emerald-900/50'; toolColor = 'text-emerald-300'; }
+
+                      // 找到当前选中的技能配置
+                      const activeSkill = availableSkills.find(s => s.id === comp.tool_name);
+
+                      return (
+                        <div key={comp.step_id || idx} className={`border rounded-lg p-3 mb-3 shadow-inner group relative ${boxColor}`}>
+                          <button 
+                            onClick={() => {
+                              const newComps = selectedNode.data.components.filter((c: any) => c.step_id !== comp.step_id);
+                              updateNodeData(selectedNode.id, { components: newComps });
+                            }} 
+                            className="absolute top-2 right-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="移除此能力"
+                          ><Trash2 size={14}/></button>
+
+                          <div className="flex justify-between items-center mb-2.5">
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${tagColor}`}>[{comp.type || 'action'}]</span>
+                            
+                            {/* 💡 核心：技能选择下拉框 */}
+                            <select 
+                              className={`bg-[#050505] text-[11px] font-mono font-bold outline-none border-b border-slate-700/50 focus:border-blue-500 ml-2 flex-1 w-0 truncate cursor-pointer ${toolColor}`}
+                              value={comp.tool_name || ''}
+                              onChange={(e) => {
+                                const selectedSkillId = e.target.value;
+                                const targetSkill = availableSkills.find(s => s.id === selectedSkillId);
+                                
+                                // 重置并构建空的 Params
+                                const newParams: any = {};
+                                if (targetSkill?.params_schema) {
+                                  targetSkill.params_schema.forEach((p: any) => newParams[p.field] = '');
+                                }
+
+                                const newComps = [...selectedNode.data.components];
+                                newComps[idx] = { ...comp, tool_name: selectedSkillId, params: newParams };
+                                updateNodeData(selectedNode.id, { components: newComps });
+                              }}
+                            >
+                              <option value="" disabled>-- 动态绑定技能 --</option>
+                              {/* 过滤掉类型不匹配的技能，保持职能隔离 */}
+                              {availableSkills.filter(s => s.type === comp.executor).map(s => (
+                                <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="flex items-center text-[9px] text-slate-500 font-mono mb-1"><Cpu size={10} className="mr-1"/> Executor: {comp.executor?.toUpperCase() || 'SYSTEM'}</div>
+
+                          {/* 💡 核心：根据 Schema 动态渲染输入表单 */}
+                          {comp.tool_name && activeSkill?.params_schema && (
+                            <div className="mt-2.5 pt-2 border-t border-slate-800/60 space-y-2.5">
+                              {activeSkill.params_schema.map((pSchema: any) => (
+                                <div key={pSchema.field}>
+                                  <label className="flex justify-between text-[9px] text-slate-400 mb-1.5">
+                                    <span>{pSchema.label} <span className="font-mono opacity-50">({pSchema.field})</span></span>
+                                    {pSchema.required && <span className="text-red-500/70">*</span>}
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    placeholder={pSchema.description || `{{context.${pSchema.field}}} 或静态值`}
+                                    className={`w-full bg-[#050505] border border-slate-700/50 rounded px-2.5 py-1.5 text-[10px] text-slate-300 font-mono outline-none focus:border-blue-500 transition-colors shadow-inner ${pSchema.required && !comp.params?.[pSchema.field] ? 'border-amber-900/50 bg-amber-950/10' : ''}`}
+                                    value={comp.params?.[pSchema.field] || ''}
+                                    onChange={(e) => {
+                                      const newComps = [...selectedNode.data.components];
+                                      newComps[idx].params = { ...newComps[idx].params, [pSchema.field]: e.target.value };
+                                      updateNodeData(selectedNode.id, { components: newComps });
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {/* 悬浮菜单：追加新的原子动作 */}
+                    <div className="mt-4 pt-2 border-t border-slate-800">
+                      <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-2">Attach New Power</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => {
+                          const newComp = { step_id: `step_${Date.now()}`, type: 'action', tool_name: '', executor: 'system', params: {} };
+                          updateNodeData(selectedNode.id, { components:[...(selectedNode.data.components || []), newComp] });
+                        }} className="border border-blue-900/50 bg-blue-950/10 text-blue-500 hover:bg-blue-900/30 text-[10px] font-bold py-1.5 rounded transition-all">+ 💻 System</button>
+                        
+                        <button onClick={() => {
+                          const newComp = { step_id: `step_${Date.now()}`, type: 'judge', tool_name: '', executor: 'agent', params: {}, assignee_id: '' };
+                          updateNodeData(selectedNode.id, { components:[...(selectedNode.data.components || []), newComp] });
+                        }} className="border border-fuchsia-900/50 bg-fuchsia-950/10 text-fuchsia-500 hover:bg-fuchsia-900/30 text-[10px] font-bold py-1.5 rounded transition-all">+ 🧠 Agent</button>
+                        
+                        <button onClick={() => {
+                          const newComp = { step_id: `step_${Date.now()}`, type: 'input', tool_name: '', executor: 'human', params: {} };
+                          updateNodeData(selectedNode.id, { components:[...(selectedNode.data.components || []), newComp] });
+                        }} className="border border-orange-900/50 bg-orange-950/10 text-orange-500 hover:bg-orange-900/30 text-[10px] font-bold py-1.5 rounded transition-all">+ 🧑‍💻 Human</button>
+                        
+                        <button onClick={() => {
+                          const newComp = { step_id: `step_${Date.now()}`, type: 'physical', tool_name: '', executor: 'hardware', params: {} };
+                          updateNodeData(selectedNode.id, { components:[...(selectedNode.data.components || []), newComp] });
+                        }} className="border border-emerald-900/50 bg-emerald-950/10 text-emerald-500 hover:bg-emerald-900/30 text-[10px] font-bold py-1.5 rounded transition-all">+ 🦾 Hardware</button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* 组件挂载 */}
-                  {selectedNode.data?.components && selectedNode.data.components.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3 border-b border-slate-800 pb-1.5">Mounted Components</div>
-                      
-                      {selectedNode.data.components.map((comp: any, idx: number) => {
-                        const executorType = comp.executor || 'system';
-                        
-                        let boxColor = 'border-slate-800/80 bg-[#050505]';
-                        let tagColor = 'text-slate-400 bg-slate-800/50 border-slate-700/50';
-                        let toolColor = 'text-blue-400';
-                        let roleBadge = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-                        let roleIcon = '⚙️ SYSTEM (Code)';
-
-                        if (executorType === 'agent') {
-                          boxColor = 'border-fuchsia-500/30 bg-fuchsia-950/10';
-                          tagColor = 'text-fuchsia-400 bg-fuchsia-950/50 border-fuchsia-900/50';
-                          toolColor = 'text-fuchsia-300';
-                          roleBadge = 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30';
-                          roleIcon = '🧠 AGENT (LLM)';
-                        } else if (executorType === 'human') {
-                          boxColor = 'border-orange-500/30 bg-orange-950/10';
-                          tagColor = 'text-orange-400 bg-orange-950/50 border-orange-900/50';
-                          toolColor = 'text-orange-300';
-                          roleBadge = 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-                          roleIcon = '🧑‍💻 HUMAN (Admin)';
-                        } else if (executorType === 'hardware') {
-                          boxColor = 'border-emerald-500/40 bg-emerald-950/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]';
-                          tagColor = 'text-emerald-400 bg-emerald-950/50 border-emerald-900/50';
-                          toolColor = 'text-emerald-300 font-bold tracking-wider';
-                          roleBadge = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold';
-                          roleIcon = '🦾 HARDWARE (IoT)';
-                        }
-
-                        return (
-                          <div key={idx} className={`border rounded-lg p-3 mb-3 shadow-inner group ${boxColor}`}>
-                            <div className="flex justify-between items-center mb-2.5">
-                              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${tagColor}`}>[{comp.type || 'action'}]</span>
-                              <span className={`text-[11px] font-mono ${toolColor}`}>{comp.tool_name}</span>
-                            </div>
-                            
-                            <div className={`flex items-center justify-between text-[9px] mb-2 ${comp.params && Object.keys(comp.params).length > 0 ? 'border-b border-slate-800/60 pb-2' : ''}`}>
-                              <span className="text-slate-500 uppercase tracking-wider">Executor Role:</span>
-                              <div className="flex items-center gap-1.5">
-                                {executorType === 'agent' && comp.assignee_id && <span className="text-[9px] text-fuchsia-500 font-mono opacity-80">@{comp.assignee_id}</span>}
-                                {executorType === 'hardware' && comp.assignee_id && <span className="text-[9px] text-emerald-500 font-mono opacity-80">[{comp.assignee_id}]</span>}
-                                <span className={`font-mono px-1.5 py-0.5 rounded border ${roleBadge}`}>{roleIcon}</span>
-                              </div>
-                            </div>
-
-                            {executorType === 'hardware' && (
-                               <div className="flex items-start gap-1.5 text-[9px] mt-2 text-emerald-500/70 bg-emerald-950/20 p-1.5 rounded border border-emerald-900/30">
-                                 <AlertTriangle size={10} className="mt-0.5 shrink-0" />
-                                 <span>此组件将产生物理位移。建议强制开启 Auditor 拦截。</span>
-                               </div>
-                            )}
-
-                            {executorType !== 'human' && comp.params?.max_retries && (
-                               <div className="flex justify-between items-center text-[10px] mt-2">
-                                 <span className="text-slate-500 font-mono">Max Retries:</span>
-                                 <span className="text-emerald-400 font-mono bg-emerald-950/30 px-1.5 rounded border border-emerald-900/50">{comp.params.max_retries}</span>
-                               </div>
-                            )}
-
-                            {executorType === 'human' && comp.params?.form_schema && (
-                              <div className="mt-2 space-y-1.5">
-                                <div className="text-[9px] text-orange-500/70 mb-1">要求填写的字段 (Input Schema):</div>
-                                {comp.params.form_schema.map((f: any, fIdx: number) => (
-                                  <div key={fIdx} className="flex justify-between items-center text-[10px] bg-[#0a0a0a] border border-orange-900/30 px-2 py-1 rounded">
-                                    <span className="text-slate-400">{f.label}</span>
-                                    <span className="text-slate-600 font-mono">({f.type}{f.required ? ' *' : ''})</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      
-                      {/* 四权分立的挂载动作按钮 */}
-                      <div className="grid grid-cols-2 gap-2 mt-3">
-                        <button className="border border-blue-900/50 bg-blue-950/10 text-blue-500 hover:bg-blue-900/30 hover:text-blue-400 text-[10px] font-bold py-1.5 rounded transition-all">+ 💻 System Code</button>
-                        <button className="border border-fuchsia-900/50 bg-fuchsia-950/10 text-fuchsia-500 hover:bg-fuchsia-900/30 hover:text-fuchsia-400 text-[10px] font-bold py-1.5 rounded transition-all">+ 🧠 AI Agent</button>
-                        <button className="border border-orange-900/50 bg-orange-950/10 text-orange-500 hover:bg-orange-900/30 hover:text-orange-400 text-[10px] font-bold py-1.5 rounded transition-all">+ 🧑‍💻 Human Input</button>
-                        <button className="border border-emerald-900/50 bg-emerald-950/10 text-emerald-500 hover:bg-emerald-900/30 hover:text-emerald-400 text-[10px] font-bold py-1.5 rounded transition-all shadow-[0_0_10px_rgba(16,185,129,0.1)]">+ 🦾 Hardware (IoT)</button>
-                      </div>
-                    </div>
-                  )}
-
                   {/* 熔断器配置 */}
-                  <div>
-                    <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3 border-b border-slate-800 pb-1.5">Auditor & Guards</div>
-                    <div className="flex items-start gap-3 p-3.5 bg-slate-900/40 border border-slate-800 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
+                  <div className="border-t border-slate-800 pt-4">
+                    <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-3">Auditor & Guards</div>
+                    <div className="flex items-start gap-3 p-3 bg-[#050505] border border-slate-800 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
                       <input type="checkbox" className="mt-1" checked={!!selectedNode.data?.interrupt_before} onChange={(e) => updateNodeData(selectedNode.id, { interrupt_before: e.target.checked })} />
                       <div>
                         <div className="text-[12px] font-bold text-slate-200 mb-1">执行前强制挂起 (HITL)</div>
@@ -460,10 +546,8 @@ export default function FlowCanvas() {
         )}
       </div>
 
-      {/* 🌟 底部控制台：Terminal & Monitor (脱离画布流独立存在于底部) */}
+      {/* 🌟 底部运行控制台 (保留不变) */}
       <div className={`w-full bg-[#0E121B] border-t border-slate-800/60 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex flex-col transition-all duration-300 z-50 shrink-0 ${isBottomPanelOpen ? 'h-[320px]' : 'h-10'}`}>
-        
-        {/* 控制台 Bar */}
         <div className="h-10 px-4 flex justify-between items-center bg-[#0B0F19] border-b border-slate-800/60 cursor-pointer hover:bg-[#0E121B] transition-colors" onClick={() => setIsBottomPanelOpen(!isBottomPanelOpen)}>
           <div className="flex items-center gap-4 h-full">
             <div className="flex items-center gap-2 h-full border-b-2 border-blue-500 text-blue-400 px-2">
@@ -475,18 +559,15 @@ export default function FlowCanvas() {
           <button className="text-slate-500 hover:text-slate-300">{isBottomPanelOpen ? <ChevronDown size={16} /> : <Maximize2 size={14} />}</button>
         </div>
 
-        {/* 控制台双屏体 */}
         {isBottomPanelOpen && (
           <div className="flex-1 flex overflow-hidden">
-            
             <div className="w-[40%] border-r border-slate-800/60 flex flex-col bg-[#050505] p-4 relative group">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-orange-500/80 via-amber-400/50 to-transparent"></div>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-[10px] font-bold text-orange-500 tracking-widest flex items-center gap-1.5">● PLAYSTREAM MONITOR</h2>
                 <span className="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Real-time</span>
               </div>
-              <div className="flex-1 rounded-lg border border-slate-800/80 bg-[#0B0F19] flex items-center justify-center text-slate-600 text-xs font-mono relative overflow-hidden shadow-inner group-hover:border-slate-700 transition-colors">
-                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(249,115,22,0.03),transparent_70%)]"></div>
+              <div className="flex-1 rounded-lg border border-slate-800/80 bg-[#0B0F19] flex items-center justify-center text-slate-600 text-xs font-mono relative overflow-hidden shadow-inner">
                 Waiting for Emobodied Action...
               </div>
             </div>
@@ -508,42 +589,35 @@ export default function FlowCanvas() {
                 <div ref={logEndRef} />
               </div>
             </div>
-
           </div>
         )}
       </div>
+
+      {/* 🌟 悬浮只读属性卡片 (监控模式下) */}
       {!editMode && inspectNode && (
         <div 
           className="fixed z-[100] bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-          style={{ 
-            left: Math.min(inspectNode.mouseX + 15, window.innerWidth - 320), // 防止飘出屏幕右侧
-            top: Math.min(inspectNode.mouseY + 15, window.innerHeight - 300), // 防止飘出屏幕底部
-            width: '300px'
-          }}
+          style={{ left: Math.min(inspectNode.mouseX + 15, window.innerWidth - 320), top: Math.min(inspectNode.mouseY + 15, window.innerHeight - 300), width: '300px' }}
         >
-          {/* Header */}
           <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-700/50 flex justify-between items-start">
             <div>
               <div className="text-[9px] font-bold tracking-widest uppercase text-blue-500 mb-1 flex items-center gap-1"><Network size={10}/> {inspectNode.type}</div>
               <h3 className="font-bold text-sm text-slate-100 leading-tight">{inspectNode.data?.label || '未命名'}</h3>
-              <div className="text-[9px] font-mono text-slate-500 mt-0.5">{inspectNode.id}</div>
             </div>
             <button onClick={() => setInspectNode(null)} className="text-slate-500 hover:text-slate-300 transition-colors p-1"><X size={14}/></button>
           </div>
-
-          {/* Body: 核心组件概览 */}
           <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
             {inspectNode.data?.components && inspectNode.data.components.length > 0 ? (
               inspectNode.data.components.map((comp: any, idx: number) => {
+                const isAgent = comp.executor === 'agent';
                 const isHuman = comp.executor === 'human';
                 const isHardware = comp.executor === 'hardware';
-                const isAgent = comp.executor === 'agent';
                 
                 return (
                   <div key={idx} className="bg-[#050505] border border-slate-700/50 rounded-lg p-2.5 shadow-inner">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-800/50 px-1.5 py-0.5 rounded border border-slate-700/50">[{comp.type}]</span>
-                      <span className="text-[10px] font-mono text-indigo-400 font-bold">{comp.tool_name}</span>
+                      <span className="text-[10px] font-mono text-indigo-400 font-bold">{comp.tool_name || '未配置技能'}</span>
                     </div>
                     <div className="flex items-center justify-between text-[9px]">
                       <span className="text-slate-500 uppercase tracking-wider">Role:</span>
@@ -559,17 +633,7 @@ export default function FlowCanvas() {
                   </div>
                 )
               })
-            ) : (
-              <div className="text-center text-[10px] text-slate-500 py-2">无挂载组件</div>
-            )}
-
-            {/* 状态徽章 */}
-            {inspectNode.data?.interrupt_before && (
-              <div className="bg-orange-950/30 border border-orange-500/30 rounded p-2 flex items-center gap-2">
-                <AlertTriangle size={12} className="text-orange-500 shrink-0"/>
-                <span className="text-[9px] text-orange-400/90 leading-tight">此节点将触发 Auditor 熔断挂起。</span>
-              </div>
-            )}
+            ) : (<div className="text-center text-[10px] text-slate-500 py-2">无挂载能力</div>)}
           </div>
         </div>
       )}
